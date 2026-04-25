@@ -76,17 +76,17 @@ def verify_correct_composition():
                             Select(fs_final, p) == Select(fs_initial, p)))
     )
 
-    # TODO: Check that (skill_A_post ∧ skill_B_post) → composed_post is valid.
-    # That is, check that the negation is UNSAT.
+    # Check (skill_A_post ∧ skill_B_post) → composed_post is valid (negation must be UNSAT)
     s = Solver()
-    # s.add(skill_A_post)
-    # s.add(skill_B_post)
-    # s.add(Not(composed_post))
+    s.add(skill_A_post)
+    s.add(skill_B_post)
+    s.add(Not(composed_post))
 
-    # TODO: uncomment and check
-    # result = s.check()
-
-    print("  TODO: Implement verification")
+    result = s.check()
+    if result == unsat:
+        print("  Composed postcondition: VERIFIED (valid)")
+    else:
+        print(f"  Composed postcondition: FAILED — counterexample: {s.model()}")
     print()
 
 
@@ -130,12 +130,25 @@ def verify_buggy_composition():
                             Select(fs_final, p) == Select(fs_initial, p)))
     )
 
-    # TODO: Check that the composed postcondition FAILS.
-    # Print the counterexample showing how the input file gets corrupted.
+    # Check the negation — expect SAT (composed postcondition fails)
     s = Solver()
-    # s.add(...)
+    s.add(skill_A_post)
+    s.add(buggy_B_post)
+    s.add(Not(composed_post))
 
-    print("  TODO: Implement buggy verification")
+    result = s.check()
+    if result == sat:
+        m = s.model()
+        print("  Composed postcondition: FAILS (bug detected)")
+        # Show concretely how the input file gets corrupted
+        init_val  = m.eval(Select(fs_initial, INPUT_FILE))
+        final_val = m.eval(Select(fs_final,   INPUT_FILE))
+        res_val   = m.eval(result_content)
+        print(f"    fs_initial[INPUT_FILE] = {init_val}")
+        print(f"    fs_final[INPUT_FILE]   = {final_val}  (overwritten with result_content={res_val})")
+        print(f"    Input file corrupted: {init_val} ≠ {final_val}")
+    else:
+        print(f"  Unexpected result: {result}")
     print()
 
 
@@ -148,8 +161,16 @@ def verify_buggy_composition():
 # Cursor, Copilot, etc.) or from what you learned in class. What would a runtime monitor need to check to
 # prevent this class of bugs?
 
-# TODO: Write your explanation here as a comment.
-# ...
+# [EXPLAIN] In real agent workflows, composition bugs like this arise when one skill
+# silently clobbers a resource another skill depends on. For example, in Claude Code a
+# "summarize and commit" workflow might chain a skill that reads a diff into memory with
+# one that writes the commit message to a temp file — if the second skill mistakenly
+# resolves a relative path to the same file the first skill read, the original diff is
+# overwritten before it is committed, producing an empty or corrupted commit.
+# A runtime monitor that prevents this class of bug would track a "read-set" for each
+# skill and enforce that no subsequent skill writes to any path in a prior skill's
+# read-set unless explicitly declared as an output — essentially enforcing data-flow
+# framing conditions between composed skills.
 # ============================================================================
 
 
